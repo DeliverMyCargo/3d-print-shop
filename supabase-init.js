@@ -9,9 +9,16 @@ async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session) {
-        document.getElementById('user-email')?.setAttribute('style', 'display:inline; margin-left:1rem; font-size:0.9rem');
-        document.getElementById('user-email').textContent = session.user.email;
-        document.getElementById('logout-btn').style.display = 'inline-block';
+        const userEmailSpan = document.getElementById('user-email');
+        const logoutBtn = document.getElementById('logout-btn');
+        
+        if (userEmailSpan) {
+            userEmailSpan.style.display = 'inline';
+            userEmailSpan.textContent = session.user.email;
+        }
+        if (logoutBtn) {
+            logoutBtn.style.display = 'inline-block';
+        }
         
         // Сохраняем профиль если его нет
         const { data: profile } = await supabase
@@ -99,8 +106,10 @@ async function loadModels(containerId, limit = null) {
             <div class="model-card-content">
                 <h3>${model.name}</h3>
                 <p>${model.description?.substring(0, 100) || ''}...</p>
+                ${model.weight ? `<div class="weight-info">⚖️ Вес: ${model.weight} г</div>` : ''}
+                ${model.license ? `<div class="license-info" style="font-size:12px; color:#666;">📜 ${model.license}${model.author ? ` | 👤 ${model.author}` : ''}</div>` : ''}
                 <div class="price">${model.price} ₽</div>
-                <button onclick="addToCart(${model.id})">В корзину</button>
+                <button onclick="addToCart(${model.id})">🛒 В корзину</button>
             </div>
         </div>
     `).join('');
