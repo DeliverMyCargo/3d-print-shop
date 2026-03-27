@@ -6,6 +6,61 @@
     <title>Запросить цену - FurtherWind</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .method-badge {
+            display: inline-block;
+            background: #e94560;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .info-box {
+            background: #e8f4fd;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border-left: 4px solid #e94560;
+        }
+        .calc-row {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        .calc-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            flex: 1;
+            min-width: 200px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .calc-card h4 {
+            color: #e94560;
+            margin-bottom: 0.5rem;
+        }
+        .weight-preset {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .preset-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .preset-btn:hover {
+            background: #e94560;
+            color: white;
+            border-color: #e94560;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -26,27 +81,75 @@
     </header>
 
     <main>
-        <h1>Запрос цены на модель</h1>
-        <p>Вставьте ссылку на модель с Thingiverse, Printables или другого сайта, и ИИ рассчитает примерную стоимость печати.</p>
+        <h1>📊 Запрос цены на модель</h1>
+        <p>Выберите способ расчета стоимости печати. Все способы работают!</p>
         
-        <div class="form-group">
-            <label>Ссылка на модель</label>
-            <input type="url" id="model-url" placeholder="https://www.thingiverse.com/thing:123456" style="width:100%;">
+        <div class="info-box">
+            <strong>💰 Формула расчета:</strong> Цена = (Вес × 2.5₽) + (Сложность × 50₽) + 100₽ (базовая работа)<br>
+            <small>Пример: фигурка 50г, сложность 5 → 50×2.5=125 + 5×50=250 + 100 = 475₽</small>
         </div>
         
-        <div class="form-group">
-            <label>Дополнительные пожелания (цвет, материал и т.д.)</label>
-            <textarea id="comments" rows="3" placeholder="Например: PLA, черный, 20% заполнение"></textarea>
+        <!-- Способ 1: Ссылка + AI -->
+        <div class="calc-card">
+            <h4>🤖 Способ 1: AI анализ по ссылке <span class="method-badge">DeepSeek AI</span></h4>
+            <p>Вставьте ссылку на модель с Thingiverse, Printables и др. AI сам определит вес и цену.</p>
+            <div class="form-group">
+                <label>Ссылка на модель</label>
+                <input type="url" id="model-url" placeholder="https://www.thingiverse.com/thing:123456" style="width:100%;">
+            </div>
+            <div class="form-group">
+                <label>Дополнительные пожелания</label>
+                <textarea id="comments" rows="2" placeholder="Цвет, материал, заполнение..."></textarea>
+            </div>
+            <button id="ai-calc-btn" class="btn-primary">🤖 Рассчитать через AI</button>
         </div>
         
-        <button id="calculate-btn" class="btn-primary">🤖 Рассчитать цену через DeepSeek AI</button>
+        <!-- Способ 2: По размерам -->
+        <div class="calc-card">
+            <h4>📏 Способ 2: По размерам модели</h4>
+            <p>Укажите примерные размеры модели (в см)</p>
+            <div class="calc-row">
+                <input type="number" id="size-x" placeholder="Длина (см)" style="width:30%;">
+                <input type="number" id="size-y" placeholder="Ширина (см)" style="width:30%;">
+                <input type="number" id="size-z" placeholder="Высота (см)" style="width:30%;">
+            </div>
+            <button id="size-calc-btn" class="btn-primary">📐 Рассчитать по размерам</button>
+        </div>
         
+        <!-- Способ 3: По типу модели -->
+        <div class="calc-card">
+            <h4>🎯 Способ 3: По типу модели</h4>
+            <p>Выберите тип модели из списка</p>
+            <div class="weight-preset">
+                <div class="preset-btn" data-weight="8" data-complexity="2">🔑 Брелок (3-10г)</div>
+                <div class="preset-btn" data-weight="25" data-complexity="3">🐱 Маленькая фигурка (15-30г)</div>
+                <div class="preset-btn" data-weight="60" data-complexity="5">🐉 Средняя фигурка (40-80г)</div>
+                <div class="preset-btn" data-weight="150" data-complexity="7">🦖 Большая фигурка (100-200г)</div>
+                <div class="preset-btn" data-weight="90" data-complexity="4">📦 Органайзер (60-120г)</div>
+                <div class="preset-btn" data-weight="220" data-complexity="8">🎭 Маска/Голова (150-300г)</div>
+                <div class="preset-btn" data-weight="500" data-complexity="9">🏺 Ваза/Крупный предмет (300-700г)</div>
+            </div>
+        </div>
+        
+        <!-- Способ 4: Ручной ввод -->
+        <div class="calc-card">
+            <h4>✍️ Способ 4: Ручной ввод</h4>
+            <p>Если точно знаете вес и сложность</p>
+            <div class="calc-row">
+                <input type="number" id="manual-weight" placeholder="Вес (грамм)" style="width:45%;">
+                <input type="number" id="manual-complexity" placeholder="Сложность 1-10" style="width:45%;" min="1" max="10">
+            </div>
+            <button id="manual-calc-btn" class="btn-primary">💰 Рассчитать</button>
+        </div>
+        
+        <!-- Результат -->
         <div id="result" style="margin-top: 2rem; display:none;">
-            <div style="background:#f0f0f0; padding:1rem; border-radius:10px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 15px; color: white;">
                 <h3>📊 Результат расчета</h3>
                 <div id="analysis-text"></div>
-                <p id="estimated-price" style="font-size:1.5rem; color:#e94560; margin-top:1rem;"></p>
-                <button id="request-order-btn" class="btn-primary">✅ Отправить запрос на печать</button>
+                <div id="price-detail" style="margin: 1rem 0;"></div>
+                <p id="estimated-price" style="font-size: 2rem; font-weight: bold;"></p>
+                <button id="request-order-btn" class="btn-primary" style="background: white; color: #e94560;">✅ Отправить запрос на печать</button>
             </div>
         </div>
         
@@ -59,200 +162,179 @@
 
     <script src="supabase-init.js"></script>
     <script>
-        // DeepSeek API ключ
         const DEEPSEEK_API_KEY = 'sk-66c3936cd3df418090f415d3cc627ca8';
         
-        async function callDeepSeek(prompt) {
-            try {
-                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'deepseek-chat',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: `Ты эксперт по 3D печати. Анализируй модель по описанию или ссылке и оценивай:
-- примерный вес в граммах
-- сложность печати (1-10, где 10 — максимально сложно)
-- рекомендуемую цену в рублях
-
-Учитывай:
-- Обычный вес фигурки 50-200 грамм
-- Цена пластика ~150 руб за 10 грамм
-- Работа: простая фигурка +300 руб, сложная +800 руб
-- Если модель большая/сложная — цена выше
-
-Отвечай ТОЛЬКО JSON форматом. Никакого другого текста, только JSON.
-Пример ответа: {"weight_grams": 85, "complexity": 5, "price_rub": 1275, "reasoning": "Средняя фигурка, 85г пластика + работа"}`
-                            },
-                            {
-                                role: 'user',
-                                content: prompt
-                            }
-                        ],
-                        temperature: 0.3,
-                        max_tokens: 300
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error('DeepSeek ошибка:', response.status, errorData);
-                    throw new Error(`API ошибка ${response.status}: ${errorData}`);
-                }
-                
-                const data = await response.json();
-                console.log('DeepSeek ответ:', data);
-                
-                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                    throw new Error('Неожиданный формат ответа от DeepSeek');
-                }
-                
-                const resultText = data.choices[0].message.content;
-                console.log('Текст ответа:', resultText);
-                
-                // Парсим JSON
-                try {
-                    // Пробуем найти JSON в тексте
-                    const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        return JSON.parse(jsonMatch[0]);
-                    }
-                    throw new Error('JSON не найден в ответе');
-                } catch (parseError) {
-                    console.warn('Парсинг JSON не удался, пробуем извлечь цену вручную');
-                    // Если не JSON — ищем цену вручную
-                    const priceMatch = resultText.match(/(\d+)\s*руб/);
-                    const weightMatch = resultText.match(/(\d+)\s*гр/);
-                    const complexityMatch = resultText.match(/сложность\D*(\d+)/i);
-                    
-                    return {
-                        weight_grams: weightMatch ? parseInt(weightMatch[1]) : 100,
-                        complexity: complexityMatch ? parseInt(complexityMatch[1]) : 5,
-                        price_rub: priceMatch ? parseInt(priceMatch[1]) : 500,
-                        reasoning: resultText.substring(0, 200)
-                    };
-                }
-            } catch (error) {
-                console.error('Ошибка при вызове DeepSeek:', error);
-                throw error;
-            }
+        // Формула расчета цены
+        function calculatePrice(weight, complexity) {
+            const materialCost = weight * 2.5; // 2.5 руб за грамм пластика
+            const workCost = complexity * 50; // 50 руб за единицу сложности
+            const baseCost = 100; // Базовая работа
+            return Math.round(materialCost + workCost + baseCost);
         }
         
-        document.getElementById('calculate-btn').onclick = async () => {
+        // Отображение результата
+        function showResult(weight, complexity, price, method, reasoning) {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('analysis-text').innerHTML = `
+                <p><strong>${method}</strong></p>
+                <p>⚖️ Вес: <strong>${weight} г</strong> | 🔧 Сложность: <strong>${complexity}/10</strong></p>
+                <p>💬 ${reasoning}</p>
+            `;
+            document.getElementById('price-detail').innerHTML = `
+                <small>Расчет: ${weight}г × 2.5₽ = ${Math.round(weight*2.5)}₽ (материал) + ${complexity} × 50₽ = ${complexity*50}₽ (работа) + 100₽ (база)</small>
+            `;
+            document.getElementById('estimated-price').innerHTML = `💰 ${price} ₽`;
+            
+            // Сохраняем для отправки заказа
+            window.lastCalculation = { weight, complexity, price, method, reasoning };
+        }
+        
+        // AI анализ через DeepSeek
+        async function callDeepSeekForWeight(url, comments) {
+            const prompt = `Проанализируй модель 3D печати по ссылке: ${url}
+Пожелания: ${comments || 'стандартная печать'}
+
+Оцени:
+1. Вес модели в граммах. Используй категории:
+   - Брелок: 3-10г
+   - Маленькая фигурка (5-8см): 15-30г
+   - Средняя фигурка (8-12см): 40-80г
+   - Большая фигурка (15-20см): 100-200г
+   - Очень большая: 200-500г
+
+2. Сложность печати 1-10:
+   - 1-3: простые формы, без поддержек
+   - 4-6: нужны поддержки, средняя детализация
+   - 7-10: очень детализированные, сложные поддержки
+
+Ответь ТОЛЬКО JSON: {"weight_grams": число, "complexity": число, "reasoning": "краткое обоснование (20 слов)"}`;
+
+            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.3,
+                    max_tokens: 300
+                })
+            });
+            
+            if (!response.ok) throw new Error('API ошибка');
+            const data = await response.json();
+            const text = data.choices[0].message.content;
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            throw new Error('Не удалось распарсить ответ');
+        }
+        
+        // Способ 1: AI
+        document.getElementById('ai-calc-btn').onclick = async () => {
             const url = document.getElementById('model-url').value;
-            const comments = document.getElementById('comments').value;
+            if (!url) { alert('Введите ссылку'); return; }
             
-            if (!url) {
-                alert('Пожалуйста, введите ссылку на модель');
-                return;
-            }
+            const session = await checkAuth();
+            if (!session) { alert('Войдите в аккаунт'); window.location.href = 'profile.html'; return; }
             
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                alert('Войдите в аккаунт, чтобы запросить цену');
-                window.location.href = 'profile.html';
-                return;
-            }
-            
-            const btn = document.getElementById('calculate-btn');
+            const btn = document.getElementById('ai-calc-btn');
             const originalText = btn.textContent;
-            btn.textContent = '🤔 Анализирую модель через DeepSeek AI...';
+            btn.textContent = '🤔 Анализирую...';
             btn.disabled = true;
             
-            // Скрываем предыдущие результаты и ошибки
-            document.getElementById('result').style.display = 'none';
-            document.getElementById('error-message').style.display = 'none';
-            
             try {
-                // Формируем промпт для DeepSeek
-                let prompt = `Ссылка на модель: ${url}\n`;
-                if (comments) {
-                    prompt += `Пожелания пользователя: ${comments}\n`;
-                }
-                prompt += `\nРассчитай стоимость печати этой модели. Верни JSON.`;
+                const comments = document.getElementById('comments').value;
+                const analysis = await callDeepSeekForWeight(url, comments);
+                const price = calculatePrice(analysis.weight_grams, analysis.complexity);
+                showResult(analysis.weight_grams, analysis.complexity, price, '🤖 AI анализ по ссылке', analysis.reasoning);
                 
-                const analysis = await callDeepSeek(prompt);
-                
-                const estimatedPrice = analysis.price_rub || 500;
-                const weight = analysis.weight_grams || '?';
-                const complexity = analysis.complexity || '?';
-                const reasoning = analysis.reasoning || 'Модель успешно проанализирована';
-                
-                document.getElementById('result').style.display = 'block';
-                document.getElementById('analysis-text').innerHTML = `
-                    <p><strong>⚖️ Вес модели:</strong> ${weight} г</p>
-                    <p><strong>🔧 Сложность печати:</strong> ${complexity}/10</p>
-                    <p><strong>💬 Обоснование:</strong> ${reasoning}</p>
-                `;
-                document.getElementById('estimated-price').innerHTML = `💰 Предварительная стоимость: ${estimatedPrice} ₽`;
-                
-                // Сохраняем запрос в Supabase
-                const { error: insertError } = await supabase.from('price_requests').insert({
+                // Сохраняем в БД
+                await supabase.from('price_requests').insert({
                     user_id: session.user.id,
                     model_url: url,
                     ai_analysis: JSON.stringify(analysis),
-                    estimated_price: estimatedPrice,
+                    estimated_price: price,
                     status: 'pending'
                 });
-                
-                if (insertError) {
-                    console.error('Ошибка сохранения в БД:', insertError);
-                }
-                
-                // Сохраняем для отправки заказа
-                window.lastPriceRequest = { url, price: estimatedPrice, comments, analysis };
-                
             } catch (error) {
-                console.error('Ошибка:', error);
                 document.getElementById('error-message').style.display = 'block';
-                document.getElementById('error-message').innerHTML = `
-                    <strong>❌ Ошибка при расчете</strong><br>
-                    ${error.message}<br><br>
-                    Попробуйте еще раз или свяжитесь с @FurtherWind для ручного расчета.
-                `;
+                document.getElementById('error-message').innerHTML = `❌ Ошибка: ${error.message}. Попробуйте другой способ.`;
             } finally {
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
         };
         
+        // Способ 2: По размерам
+        document.getElementById('size-calc-btn').onclick = () => {
+            const x = parseFloat(document.getElementById('size-x').value);
+            const y = parseFloat(document.getElementById('size-y').value);
+            const z = parseFloat(document.getElementById('size-z').value);
+            
+            if (!x || !y || !z) { alert('Введите все три размера'); return; }
+            
+            const volume = x * y * z; // см³
+            const density = 1.24; // PLA плотность
+            let weight = Math.round(volume * density);
+            weight = Math.min(Math.max(weight, 10), 1000); // ограничиваем
+            
+            let complexity = 3;
+            if (weight > 200) complexity = 7;
+            else if (weight > 100) complexity = 5;
+            else if (weight > 50) complexity = 4;
+            else if (weight > 20) complexity = 3;
+            
+            const price = calculatePrice(weight, complexity);
+            showResult(weight, complexity, price, '📏 Расчет по размерам', `Объем: ${volume} см³, PLA пластик`);
+        };
+        
+        // Способ 3: По типу (пресеты)
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.onclick = () => {
+                const weight = parseFloat(btn.dataset.weight);
+                const complexity = parseFloat(btn.dataset.complexity);
+                const price = calculatePrice(weight, complexity);
+                showResult(weight, complexity, price, '🎯 По типу модели', btn.textContent);
+            };
+        });
+        
+        // Способ 4: Ручной ввод
+        document.getElementById('manual-calc-btn').onclick = () => {
+            const weight = parseFloat(document.getElementById('manual-weight').value);
+            const complexity = parseFloat(document.getElementById('manual-complexity').value);
+            
+            if (!weight || !complexity) { alert('Введите вес и сложность'); return; }
+            if (complexity < 1 || complexity > 10) { alert('Сложность от 1 до 10'); return; }
+            
+            const price = calculatePrice(weight, complexity);
+            showResult(weight, complexity, price, '✍️ Ручной ввод', 'Пользователь указал точные параметры');
+        };
+        
+        // Отправка заказа
         document.getElementById('request-order-btn').onclick = async () => {
-            if (!window.lastPriceRequest) return;
+            if (!window.lastCalculation) return;
             
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            const session = await checkAuth();
+            if (!session) { alert('Войдите в аккаунт'); return; }
             
-            try {
-                // Создаем заказ с пометкой "требует уточнения"
-                const { data: order, error } = await supabase
-                    .from('orders')
-                    .insert({
-                        user_id: session.user.id,
-                        total_price: window.lastPriceRequest.price,
-                        status: 'price_request'
-                    })
-                    .select()
-                    .single();
-                    
-                if (error) throw error;
+            const { data: order } = await supabase
+                .from('orders')
+                .insert({
+                    user_id: session.user.id,
+                    total_price: window.lastCalculation.price,
+                    status: 'price_request'
+                })
+                .select()
+                .single();
                 
-                alert(`✅ Запрос на печать отправлен!\n\n` +
-                      `📦 Модель: ${window.lastPriceRequest.url}\n` +
-                      `💰 Предварительная стоимость: ${window.lastPriceRequest.price} ₽\n\n` +
-                      `📞 Ожидайте ответа в Telegram @FurtherWind для подтверждения заказа и уточнения деталей.\n\n` +
-                      `Номер заказа: #${order.id}`);
-                      
-                window.location.href = 'profile.html';
-                
-            } catch (error) {
-                console.error('Ошибка создания заказа:', error);
-                alert('Ошибка при создании заказа. Пожалуйста, свяжитесь с @FurtherWind напрямую.');
-            }
+            alert(`✅ Запрос отправлен!\n\n` +
+                  `📊 ${window.lastCalculation.method}\n` +
+                  `⚖️ Вес: ${window.lastCalculation.weight}г\n` +
+                  `💰 Стоимость: ${window.lastCalculation.price} ₽\n\n` +
+                  `📞 Ждите ответа в Telegram @FurtherWind`);
+            window.location.href = 'profile.html';
         };
     </script>
 </body>
