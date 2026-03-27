@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корзина - FurtherWind</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">FurtherWind</div>
+            <ul>
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="request-price.html">Запросить цену</a></li>
+                <li><a href="cart.html">Корзина 🛒</a></li>
+                <li id="auth-nav">
+                    <a href="profile.html">Профиль</a>
+                    <span id="user-email" style="display:none;"></span>
+                    <button id="logout-btn" style="display:none;">Выйти</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Корзина</h1>
+        <div id="cart-items"></div>
+        <div id="cart-total" class="cart-total"></div>
+        <button id="checkout-btn" class="btn-primary" style="display:none;">Оформить заказ</button>
+    </main>
+
+    <footer>
+        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
+    </footer>
+
+    <script src="supabase-init.js"></script>
+    <script>
+        async function loadCart() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                document.getElementById('cart-items').innerHTML = '<div class="loading">Войдите, чтобы увидеть корзину</div>';
+                return;
+            }
+            
+            const { data: cartItems, error } = await supabase
+                .from('cart')
+                .select('*, models(*)')
+                .eq('user_id', session.user.id);
+                
+            if (error || !cartItems || cartItems.length === 0) {
+                document.getElementById('cart-items').innerHTML = '<div class="loading">Корзина пуста</div>';
+                document.getElementById('checkout-btn').style.display = 'none';
+                return;
+            }
+            
+            let total = 0;
+            document.getElementById('cart-items').innerHTML = cartItems.map(item => {
+                const price = item.models.price;
+                const subtotal = price * item.quantity;
+                total += subtotal;
+                return `
+                    <div class="cart-item">
+                        <div>
+                            <strong>${item.models.name}</strong><br>
+                            ${price} ₽ × ${item.quantity} = ${subtotal} ₽
+                        </div>
+                        <div>
+                            <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                            <span>${item.quantity}</span>
+                            <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                            <button onclick="removeFromCart(${item.id})" style="background:#e94560;">Удалить</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('cart-total').innerHTML = `Итого: ${total} ₽`;
+            document.getElementById('checkout-btn').style.display = 'block';
+        }
+        
+        window.updateQuantity = async (cartId, newQuantity) => {
+            if (newQuantity <= 0) {
+                await removeFromCart(cartId);
+            } else {
+                await supabase.from('cart').update({ quantity: newQuantity }).eq('id', cartId);
+                loadCart();
+            }
+        };
+        
+        window.removeFromCart = async (cartId) => {
+            await supabase.from('cart').delete().eq('id', cartId);
+            loadCart();
+        };
+        
+        document.getElementById('checkout-btn').onclick = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            
+            const { data: cartItems } = await supabase
+                .from('cart')
+                .select('*, models(*)')
+                .eq('user_id', session.user.id);
+                
+            let total = 0;
+            cartItems.forEach(item => total += item.models.price * item.quantity);
+            
+            // Создаем заказ
+            const { data: order } = await supabase
+                .from('orders')
+                .insert({ user_id: session.user.id, total_price: total, status: 'pending' })
+                .select()
+                .single();
+                
+            // Добавляем товары в заказ
+            for (const item of cartItems) {
+                await supabase
+                    .from('order_items')
+                    .insert({
+                        order_id: order.id,
+                        model_id: item.model_id,
+                        quantity: item.quantity,
+                        price_at_time: item.models.price
+                    });
+            }
+            
+            // Очищаем корзину
+            await supabase.from('cart').delete().eq('user_id', session.user.id);
+            
+            alert(`Заказ #${order.id} оформлен! Сумма: ${total} ₽. Свяжитесь с @FurtherWind для оплаты и уточнения деталей.`);
+            loadCart();
+        };
+        
+        document.addEventListener('DOMContentLoaded', loadCart);
+    </script>
+</body>
+</html>
