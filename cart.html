@@ -6,6 +6,7 @@
     <title>Корзина - FurtherWind</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
 </head>
 <body>
     <header>
@@ -36,7 +37,6 @@
         <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
     </footer>
 
-    <script src="supabase-init.js"></script>
     <script>
         async function loadCart() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -83,11 +83,11 @@
         
         window.updateQuantity = async (cartId, newQuantity) => {
             if (newQuantity <= 0) {
-                await removeFromCart(cartId);
+                await supabase.from('cart').delete().eq('id', cartId);
             } else {
                 await supabase.from('cart').update({ quantity: newQuantity }).eq('id', cartId);
-                loadCart();
             }
+            loadCart();
         };
         
         window.removeFromCart = async (cartId) => {
