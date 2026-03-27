@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Каталог - FurtherWind</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">FurtherWind</div>
+            <ul>
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="request-price.html">Запросить цену</a></li>
+                <li><a href="cart.html">Корзина 🛒</a></li>
+                <li id="auth-nav">
+                    <a href="profile.html">Профиль</a>
+                    <span id="user-email" style="display:none;"></span>
+                    <button id="logout-btn" style="display:none;">Выйти</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Каталог моделей</h1>
+        <div id="catalog-models" class="models-grid">
+            <div class="loading">Загрузка...</div>
+        </div>
+    </main>
+
+    <footer>
+        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
+    </footer>
+
+    <script src="supabase-init.js"></script>
+    <script>
+        loadModels('catalog-models');
+    </script>
+</body>
+</html>
