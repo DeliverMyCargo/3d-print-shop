@@ -39,33 +39,116 @@
             <textarea id="comments" rows="3" placeholder="Например: PLA, черный, 20% заполнение"></textarea>
         </div>
         
-        <button id="calculate-btn" class="btn-primary">Рассчитать цену</button>
+        <button id="calculate-btn" class="btn-primary">🤖 Рассчитать цену через DeepSeek AI</button>
         
         <div id="result" style="margin-top: 2rem; display:none;">
             <div style="background:#f0f0f0; padding:1rem; border-radius:10px;">
-                <h3>Результат расчета</h3>
-                <p id="analysis-text"></p>
-                <p id="estimated-price" style="font-size:1.5rem; color:#e94560;"></p>
-                <button id="request-order-btn" class="btn-primary">Отправить запрос на печать</button>
+                <h3>📊 Результат расчета</h3>
+                <div id="analysis-text"></div>
+                <p id="estimated-price" style="font-size:1.5rem; color:#e94560; margin-top:1rem;"></p>
+                <button id="request-order-btn" class="btn-primary">✅ Отправить запрос на печать</button>
             </div>
         </div>
+        
+        <div id="error-message" style="margin-top: 2rem; color: red; display:none;"></div>
     </main>
 
     <footer>
-        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
+        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram @FurtherWind</a></p>
     </footer>
 
     <script src="supabase-init.js"></script>
     <script>
-        // Замените на ваш API ключ OpenRouter
-        const OPENROUTER_API_KEY = 'ваш-ключ-openrouter'; // Получить на openrouter.ai
+        // DeepSeek API ключ
+        const DEEPSEEK_API_KEY = 'sk-66c3936cd3df418090f415d3cc627ca8';
+        
+        async function callDeepSeek(prompt) {
+            try {
+                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `Ты эксперт по 3D печати. Анализируй модель по описанию или ссылке и оценивай:
+- примерный вес в граммах
+- сложность печати (1-10, где 10 — максимально сложно)
+- рекомендуемую цену в рублях
+
+Учитывай:
+- Обычный вес фигурки 50-200 грамм
+- Цена пластика ~150 руб за 10 грамм
+- Работа: простая фигурка +300 руб, сложная +800 руб
+- Если модель большая/сложная — цена выше
+
+Отвечай ТОЛЬКО JSON форматом. Никакого другого текста, только JSON.
+Пример ответа: {"weight_grams": 85, "complexity": 5, "price_rub": 1275, "reasoning": "Средняя фигурка, 85г пластика + работа"}`
+                            },
+                            {
+                                role: 'user',
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 300
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    console.error('DeepSeek ошибка:', response.status, errorData);
+                    throw new Error(`API ошибка ${response.status}: ${errorData}`);
+                }
+                
+                const data = await response.json();
+                console.log('DeepSeek ответ:', data);
+                
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                    throw new Error('Неожиданный формат ответа от DeepSeek');
+                }
+                
+                const resultText = data.choices[0].message.content;
+                console.log('Текст ответа:', resultText);
+                
+                // Парсим JSON
+                try {
+                    // Пробуем найти JSON в тексте
+                    const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        return JSON.parse(jsonMatch[0]);
+                    }
+                    throw new Error('JSON не найден в ответе');
+                } catch (parseError) {
+                    console.warn('Парсинг JSON не удался, пробуем извлечь цену вручную');
+                    // Если не JSON — ищем цену вручную
+                    const priceMatch = resultText.match(/(\d+)\s*руб/);
+                    const weightMatch = resultText.match(/(\d+)\s*гр/);
+                    const complexityMatch = resultText.match(/сложность\D*(\d+)/i);
+                    
+                    return {
+                        weight_grams: weightMatch ? parseInt(weightMatch[1]) : 100,
+                        complexity: complexityMatch ? parseInt(complexityMatch[1]) : 5,
+                        price_rub: priceMatch ? parseInt(priceMatch[1]) : 500,
+                        reasoning: resultText.substring(0, 200)
+                    };
+                }
+            } catch (error) {
+                console.error('Ошибка при вызове DeepSeek:', error);
+                throw error;
+            }
+        }
         
         document.getElementById('calculate-btn').onclick = async () => {
             const url = document.getElementById('model-url').value;
             const comments = document.getElementById('comments').value;
             
             if (!url) {
-                alert('Введите ссылку на модель');
+                alert('Пожалуйста, введите ссылку на модель');
                 return;
             }
             
@@ -76,77 +159,65 @@
                 return;
             }
             
-            document.getElementById('calculate-btn').textContent = 'Анализируем...';
-            document.getElementById('calculate-btn').disabled = true;
+            const btn = document.getElementById('calculate-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '🤔 Анализирую модель через DeepSeek AI...';
+            btn.disabled = true;
+            
+            // Скрываем предыдущие результаты и ошибки
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
             
             try {
-                // Анализ через OpenRouter (бесплатные модели)
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'google/gemini-2.0-flash-exp:free',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: 'Ты эксперт по 3D печати. Анализируй модель по ссылке и оценивай: примерный вес в граммах, сложность печати (1-10), рекомендуемую цену в рублях. Учитывай, что базовая цена 100-200 руб за 10г пластика + работа. Отвечай JSON: {weight_grams, complexity, price_rub, reasoning}'
-                            },
-                            {
-                                role: 'user',
-                                content: `Ссылка на модель: ${url}\nПожелания: ${comments || 'стандартная печать'}`
-                            }
-                        ]
-                    })
-                });
-                
-                const data = await response.json();
-                let analysis;
-                
-                try {
-                    // Пытаемся распарсить JSON из ответа
-                    const content = data.choices[0].message.content;
-                    const jsonMatch = content.match(/\{.*\}/s);
-                    if (jsonMatch) {
-                        analysis = JSON.parse(jsonMatch[0]);
-                    } else {
-                        // Если не JSON, пробуем извлечь цену
-                        const priceMatch = content.match(/(\d+)\s*руб/);
-                        analysis = {
-                            price_rub: priceMatch ? parseInt(priceMatch[1]) : 500,
-                            reasoning: content
-                        };
-                    }
-                } catch (e) {
-                    analysis = { price_rub: 500, reasoning: 'Базовая оценка' };
+                // Формируем промпт для DeepSeek
+                let prompt = `Ссылка на модель: ${url}\n`;
+                if (comments) {
+                    prompt += `Пожелания пользователя: ${comments}\n`;
                 }
+                prompt += `\nРассчитай стоимость печати этой модели. Верни JSON.`;
+                
+                const analysis = await callDeepSeek(prompt);
                 
                 const estimatedPrice = analysis.price_rub || 500;
+                const weight = analysis.weight_grams || '?';
+                const complexity = analysis.complexity || '?';
+                const reasoning = analysis.reasoning || 'Модель успешно проанализирована';
                 
                 document.getElementById('result').style.display = 'block';
-                document.getElementById('analysis-text').innerHTML = analysis.reasoning || 'Модель оценена';
-                document.getElementById('estimated-price').innerHTML = `Примерная стоимость: ${estimatedPrice} ₽`;
+                document.getElementById('analysis-text').innerHTML = `
+                    <p><strong>⚖️ Вес модели:</strong> ${weight} г</p>
+                    <p><strong>🔧 Сложность печати:</strong> ${complexity}/10</p>
+                    <p><strong>💬 Обоснование:</strong> ${reasoning}</p>
+                `;
+                document.getElementById('estimated-price').innerHTML = `💰 Предварительная стоимость: ${estimatedPrice} ₽`;
                 
-                // Сохраняем запрос в базу
-                await supabase.from('price_requests').insert({
+                // Сохраняем запрос в Supabase
+                const { error: insertError } = await supabase.from('price_requests').insert({
                     user_id: session.user.id,
                     model_url: url,
-                    ai_analysis: analysis.reasoning || '',
+                    ai_analysis: JSON.stringify(analysis),
                     estimated_price: estimatedPrice,
                     status: 'pending'
                 });
                 
-                // Сохраняем ID для отправки заказа
-                window.lastPriceRequest = { url, price: estimatedPrice, comments };
+                if (insertError) {
+                    console.error('Ошибка сохранения в БД:', insertError);
+                }
+                
+                // Сохраняем для отправки заказа
+                window.lastPriceRequest = { url, price: estimatedPrice, comments, analysis };
                 
             } catch (error) {
                 console.error('Ошибка:', error);
-                alert('Ошибка при расчете. Попробуйте позже или свяжитесь с @FurtherWind');
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('error-message').innerHTML = `
+                    <strong>❌ Ошибка при расчете</strong><br>
+                    ${error.message}<br><br>
+                    Попробуйте еще раз или свяжитесь с @FurtherWind для ручного расчета.
+                `;
             } finally {
-                document.getElementById('calculate-btn').textContent = 'Рассчитать цену';
-                document.getElementById('calculate-btn').disabled = false;
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         };
         
@@ -156,19 +227,32 @@
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             
-            // Создаем заказ с пометкой "требует уточнения"
-            const { data: order } = await supabase
-                .from('orders')
-                .insert({
-                    user_id: session.user.id,
-                    total_price: window.lastPriceRequest.price,
-                    status: 'price_request'
-                })
-                .select()
-                .single();
+            try {
+                // Создаем заказ с пометкой "требует уточнения"
+                const { data: order, error } = await supabase
+                    .from('orders')
+                    .insert({
+                        user_id: session.user.id,
+                        total_price: window.lastPriceRequest.price,
+                        status: 'price_request'
+                    })
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
                 
-            alert(`Запрос отправлен! Ожидайте ответа в Telegram @FurtherWind. Предварительная стоимость: ${window.lastPriceRequest.price} ₽`);
-            window.location.href = 'profile.html';
+                alert(`✅ Запрос на печать отправлен!\n\n` +
+                      `📦 Модель: ${window.lastPriceRequest.url}\n` +
+                      `💰 Предварительная стоимость: ${window.lastPriceRequest.price} ₽\n\n` +
+                      `📞 Ожидайте ответа в Telegram @FurtherWind для подтверждения заказа и уточнения деталей.\n\n` +
+                      `Номер заказа: #${order.id}`);
+                      
+                window.location.href = 'profile.html';
+                
+            } catch (error) {
+                console.error('Ошибка создания заказа:', error);
+                alert('Ошибка при создании заказа. Пожалуйста, свяжитесь с @FurtherWind напрямую.');
+            }
         };
     </script>
 </body>
