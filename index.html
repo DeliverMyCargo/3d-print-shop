@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FurtherWind - 3D печать моделей</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">FurtherWind</div>
+            <ul>
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="request-price.html">Запросить цену</a></li>
+                <li><a href="cart.html">Корзина 🛒</a></li>
+                <li id="auth-nav">
+                    <a href="profile.html" id="profile-link">Профиль</a>
+                    <span id="user-email" style="display:none;"></span>
+                    <button id="logout-btn" style="display:none;">Выйти</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>3D печать под заказ</h1>
+            <p>Любые модели. Качественная печать. Быстрая доставка.</p>
+            <a href="catalog.html" class="btn-primary">Смотреть каталог</a>
+        </section>
+
+        <section class="featured">
+            <h2>Популярные модели</h2>
+            <div id="featured-models" class="models-grid">
+                <!-- Здесь будут загружаться модели -->
+                <div class="loading">Загрузка...</div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
+    </footer>
+
+    <script src="supabase-init.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
