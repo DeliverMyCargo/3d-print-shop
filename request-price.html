@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Запросить цену - FurtherWind</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">FurtherWind</div>
+            <ul>
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="request-price.html">Запросить цену</a></li>
+                <li><a href="cart.html">Корзина 🛒</a></li>
+                <li id="auth-nav">
+                    <a href="profile.html">Профиль</a>
+                    <span id="user-email" style="display:none;"></span>
+                    <button id="logout-btn" style="display:none;">Выйти</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Запрос цены на модель</h1>
+        <p>Вставьте ссылку на модель с Thingiverse, Printables или другого сайта, и ИИ рассчитает примерную стоимость печати.</p>
+        
+        <div class="form-group">
+            <label>Ссылка на модель</label>
+            <input type="url" id="model-url" placeholder="https://www.thingiverse.com/thing:123456" style="width:100%;">
+        </div>
+        
+        <div class="form-group">
+            <label>Дополнительные пожелания (цвет, материал и т.д.)</label>
+            <textarea id="comments" rows="3" placeholder="Например: PLA, черный, 20% заполнение"></textarea>
+        </div>
+        
+        <button id="calculate-btn" class="btn-primary">Рассчитать цену</button>
+        
+        <div id="result" style="margin-top: 2rem; display:none;">
+            <div style="background:#f0f0f0; padding:1rem; border-radius:10px;">
+                <h3>Результат расчета</h3>
+                <p id="analysis-text"></p>
+                <p id="estimated-price" style="font-size:1.5rem; color:#e94560;"></p>
+                <button id="request-order-btn" class="btn-primary">Отправить запрос на печать</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
+    </footer>
+
+    <script src="supabase-init.js"></script>
+    <script>
+        // Замените на ваш API ключ OpenRouter
+        const OPENROUTER_API_KEY = 'ваш-ключ-openrouter'; // Получить на openrouter.ai
+        
+        document.getElementById('calculate-btn').onclick = async () => {
+            const url = document.getElementById('model-url').value;
+            const comments = document.getElementById('comments').value;
+            
+            if (!url) {
+                alert('Введите ссылку на модель');
+                return;
+            }
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('Войдите в аккаунт, чтобы запросить цену');
+                window.location.href = 'profile.html';
+                return;
+            }
+            
+            document.getElementById('calculate-btn').textContent = 'Анализируем...';
+            document.getElementById('calculate-btn').disabled = true;
+            
+            try {
+                // Анализ через OpenRouter (бесплатные модели)
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'google/gemini-2.0-flash-exp:free',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Ты эксперт по 3D печати. Анализируй модель по ссылке и оценивай: примерный вес в граммах, сложность печати (1-10), рекомендуемую цену в рублях. Учитывай, что базовая цена 100-200 руб за 10г пластика + работа. Отвечай JSON: {weight_grams, complexity, price_rub, reasoning}'
+                            },
+                            {
+                                role: 'user',
+                                content: `Ссылка на модель: ${url}\nПожелания: ${comments || 'стандартная печать'}`
+                            }
+                        ]
+                    })
+                });
+                
+                const data = await response.json();
+                let analysis;
+                
+                try {
+                    // Пытаемся распарсить JSON из ответа
+                    const content = data.choices[0].message.content;
+                    const jsonMatch = content.match(/\{.*\}/s);
+                    if (jsonMatch) {
+                        analysis = JSON.parse(jsonMatch[0]);
+                    } else {
+                        // Если не JSON, пробуем извлечь цену
+                        const priceMatch = content.match(/(\d+)\s*руб/);
+                        analysis = {
+                            price_rub: priceMatch ? parseInt(priceMatch[1]) : 500,
+                            reasoning: content
+                        };
+                    }
+                } catch (e) {
+                    analysis = { price_rub: 500, reasoning: 'Базовая оценка' };
+                }
+                
+                const estimatedPrice = analysis.price_rub || 500;
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('analysis-text').innerHTML = analysis.reasoning || 'Модель оценена';
+                document.getElementById('estimated-price').innerHTML = `Примерная стоимость: ${estimatedPrice} ₽`;
+                
+                // Сохраняем запрос в базу
+                await supabase.from('price_requests').insert({
+                    user_id: session.user.id,
+                    model_url: url,
+                    ai_analysis: analysis.reasoning || '',
+                    estimated_price: estimatedPrice,
+                    status: 'pending'
+                });
+                
+                // Сохраняем ID для отправки заказа
+                window.lastPriceRequest = { url, price: estimatedPrice, comments };
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка при расчете. Попробуйте позже или свяжитесь с @FurtherWind');
+            } finally {
+                document.getElementById('calculate-btn').textContent = 'Рассчитать цену';
+                document.getElementById('calculate-btn').disabled = false;
+            }
+        };
+        
+        document.getElementById('request-order-btn').onclick = async () => {
+            if (!window.lastPriceRequest) return;
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            
+            // Создаем заказ с пометкой "требует уточнения"
+            const { data: order } = await supabase
+                .from('orders')
+                .insert({
+                    user_id: session.user.id,
+                    total_price: window.lastPriceRequest.price,
+                    status: 'price_request'
+                })
+                .select()
+                .single();
+                
+            alert(`Запрос отправлен! Ожидайте ответа в Telegram @FurtherWind. Предварительная стоимость: ${window.lastPriceRequest.price} ₽`);
+            window.location.href = 'profile.html';
+        };
+    </script>
+</body>
+</html>
