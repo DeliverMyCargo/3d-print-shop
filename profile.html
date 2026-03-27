@@ -6,6 +6,7 @@
     <title>Профиль - FurtherWind</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
 </head>
 <body>
     <header>
@@ -71,74 +72,77 @@
         <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
     </footer>
 
-    <script src="supabase-init.js"></script>
     <script>
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        const profileInfo = document.getElementById('profile-info');
-        
-        async function checkProfile() {
-            const session = await checkAuth();
-            if (session) {
-                loginForm.style.display = 'none';
-                registerForm.style.display = 'none';
-                profileInfo.style.display = 'block';
-                document.getElementById('profile-email').textContent = session.user.email;
+        // Функции для работы с профилем
+        async function loadProfileInfo() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return false;
+            
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('profile-info').style.display = 'block';
+            document.getElementById('profile-email').textContent = session.user.email;
+            
+            // Загружаем профиль
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
                 
-                // Загружаем профиль
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-                    
-                if (profile?.phone) {
-                    document.getElementById('profile-phone').value = profile.phone;
-                }
-                
-                // Загружаем заказы
-                const { data: orders } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .order('created_at', { ascending: false });
-                    
-                const ordersContainer = document.getElementById('orders-list');
-                if (orders && orders.length > 0) {
-                    ordersContainer.innerHTML = '<h3>Мои заказы</h3>' + orders.map(order => `
-                        <div style="background:#f0f0f0; padding:1rem; margin-bottom:0.5rem; border-radius:5px;">
-                            Заказ #${order.id} - ${order.total_price} ₽ - Статус: ${order.status}<br>
-                            <small>${new Date(order.created_at).toLocaleDateString()}</small>
-                        </div>
-                    `).join('');
-                } else {
-                    ordersContainer.innerHTML = '<p>У вас пока нет заказов</p>';
-                }
-            } else {
-                loginForm.style.display = 'block';
-                registerForm.style.display = 'none';
-                profileInfo.style.display = 'none';
+            if (profile?.phone) {
+                document.getElementById('profile-phone').value = profile.phone;
             }
+            
+            // Загружаем заказы
+            const { data: orders } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false });
+                
+            const ordersContainer = document.getElementById('orders-list');
+            if (orders && orders.length > 0) {
+                ordersContainer.innerHTML = '<h3>Мои заказы</h3>' + orders.map(order => `
+                    <div style="background:#f0f0f0; padding:1rem; margin-bottom:0.5rem; border-radius:5px;">
+                        Заказ #${order.id} - ${order.total_price} ₽ - Статус: ${order.status}<br>
+                        <small>${new Date(order.created_at).toLocaleDateString()}</small>
+                    </div>
+                `).join('');
+            } else {
+                ordersContainer.innerHTML = '<p>У вас пока нет заказов</p>';
+            }
+            
+            return true;
         }
         
+        // Вход
         document.getElementById('login-btn').onclick = async () => {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
             const { error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) alert('Ошибка: ' + error.message);
-            else window.location.reload();
+            if (error) {
+                alert('Ошибка: ' + error.message);
+            } else {
+                window.location.reload();
+            }
         };
         
+        // Регистрация
         document.getElementById('register-btn').onclick = async () => {
             const email = document.getElementById('reg-email').value;
             const password = document.getElementById('reg-password').value;
             const { error } = await supabase.auth.signUp({ email, password });
-            if (error) alert('Ошибка: ' + error.message);
-            else alert('Регистрация успешна! Проверьте почту для подтверждения');
+            if (error) {
+                alert('Ошибка: ' + error.message);
+            } else {
+                alert('Регистрация успешна! Проверьте почту для подтверждения');
+            }
         };
         
+        // Сохранение профиля
         document.getElementById('save-profile-btn').onclick = async () => {
-            const session = await checkAuth();
+            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const phone = document.getElementById('profile-phone').value;
                 await supabase
@@ -149,21 +153,34 @@
             }
         };
         
-        document.getElementById('show-register').onclick = () => {
-            loginForm.style.display = 'none';
-            registerForm.style.display = 'block';
+        // Переключение между формами
+        document.getElementById('show-register').onclick = (e) => {
+            e.preventDefault();
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
         };
         
-        document.getElementById('show-login').onclick = () => {
-            loginForm.style.display = 'block';
-            registerForm.style.display = 'none';
+        document.getElementById('show-login').onclick = (e) => {
+            e.preventDefault();
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
         };
         
         document.getElementById('view-orders-btn').onclick = () => {
             window.location.reload();
         };
         
-        checkProfile();
+        // Проверяем авторизацию при загрузке
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                loadProfileInfo();
+            } else {
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('register-form').style.display = 'none';
+                document.getElementById('profile-info').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
