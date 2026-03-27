@@ -6,6 +6,7 @@
     <title>Каталог - FurtherWind</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
 </head>
 <body>
     <header>
@@ -36,39 +37,8 @@
         <p>FurtherWind - 3D печать | Контакты: <a href="https://t.me/FurtherWind" target="_blank">Telegram</a></p>
     </footer>
 
-    <script src="supabase-init.js"></script>
     <script>
-        async function loadModels(containerId, limit = null) {
-    let query = supabase.from('models').select('*').order('created_at', { ascending: false });
-    if (limit) query = query.limit(limit);
-    
-    const { data: models, error } = await query;
-    if (error) { console.error(error); return []; }
-    
-    const container = document.getElementById(containerId);
-    if (!container) return models;
-    
-    if (!models || models.length === 0) {
-        container.innerHTML = '<div class="loading">Моделей пока нет</div>';
-        return [];
-    }
-    
-    container.innerHTML = models.map(model => `
-        <div class="model-card">
-            <img src="${model.image_url || 'https://via.placeholder.com/300x200?text=3D+Model'}" alt="${model.name}">
-            <div class="model-card-content">
-                <h3>${model.name}</h3>
-                <p>${model.description?.substring(0, 100) || ''}...</p>
-                ${model.weight ? `<div class="weight-info">⚖️ Вес: ${model.weight} г</div>` : ''}
-                ${model.license ? `<div class="license-info" style="font-size:12px; color:#666;">📜 ${model.license}${model.author ? ` | 👤 ${model.author}` : ''}</div>` : ''}
-                <div class="price">${model.price} ₽</div>
-                <button onclick="addToCart(${model.id})">🛒 В корзину</button>
-            </div>
-        </div>
-    `).join('');
-    
-    return models;
-}
+        loadModels('catalog-models');
     </script>
 </body>
 </html>
