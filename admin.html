@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - FurtherWind</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">FurtherWind - Админ</div>
+            <ul>
+                <li><a href="index.html">На сайт</a></li>
+                <li><button id="logout-btn" style="background:#e94560;">Выйти</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Добавление модели</h1>
+        
+        <div class="form-group">
+            <label>Название модели</label>
+            <input type="text" id="model-name" placeholder="Дракончик">
+        </div>
+        
+        <div class="form-group">
+            <label>Описание</label>
+            <textarea id="model-desc" rows="3" placeholder="Красивая фигурка дракона..."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Ссылка на фото (URL)</label>
+            <input type="url" id="model-image" placeholder="https://example.com/photo.jpg">
+        </div>
+        
+        <div class="form-group">
+            <label>Цена (₽)</label>
+            <input type="number" id="model-price" placeholder="500">
+        </div>
+        
+        <div class="form-group">
+            <label>Ссылка на оригинал (Thingiverse и т.д.)</label>
+            <input type="url" id="model-original" placeholder="https://www.thingiverse.com/thing:123456">
+        </div>
+        
+        <div class="form-group">
+            <label>Категория</label>
+            <input type="text" id="model-category" placeholder="Фигурки, Органайзеры...">
+        </div>
+        
+        <button id="add-model-btn" class="btn-primary">Добавить модель</button>
+        
+        <h2 style="margin-top: 2rem;">Существующие модели</h2>
+        <div id="models-list"></div>
+    </main>
+
+    <footer>
+        <p>FurtherWind - Админ панель</p>
+    </footer>
+
+    <script src="supabase-init.js"></script>
+    <script>
+        // Проверка что это админ (по email)
+        async function checkAdmin() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'profile.html';
+                return false;
+            }
+            // Твой email как админ
+            if (session.user.email !== 'твой-email@example.com') {
+                alert('У вас нет прав администратора');
+                window.location.href = 'index.html';
+                return false;
+            }
+            return true;
+        }
+        
+        async function loadModelsForAdmin() {
+            const { data: models } = await supabase
+                .from('models')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            const container = document.getElementById('models-list');
+            if (!models || models.length === 0) {
+                container.innerHTML = '<p>Моделей пока нет</p>';
+                return;
+            }
+            
+            container.innerHTML = models.map(model => `
+                <div style="background:#f0f0f0; padding:1rem; margin-bottom:1rem; border-radius:5px;">
+                    <strong>${model.name}</strong> - ${model.price} ₽<br>
+                    <small>${model.description?.substring(0, 100)}</small><br>
+                    <button onclick="deleteModel(${model.id})" style="background:#e94560; margin-top:0.5rem;">Удалить</button>
+                </div>
+            `).join('');
+        }
+        
+        window.deleteModel = async (id) => {
+            if (confirm('Удалить модель?')) {
+                await supabase.from('models').delete().eq('id', id);
+                loadModelsForAdmin();
+            }
+        };
+        
+        document.getElementById('add-model-btn').onclick = async () => {
+            const name = document.getElementById('model-name').value;
+            const description = document.getElementById('model-desc').value;
+            const image_url = document.getElementById('model-image').value;
+            const price = parseFloat(document.getElementById('model-price').value);
+            const original_url = document.getElementById('model-original').value;
+            const category = document.getElementById('model-category').value;
+            
+            if (!name || !price) {
+                alert('Заполните название и цену');
+                return;
+            }
+            
+            const { error } = await supabase.from('models').insert({
+                name,
+                description,
+                image_url: image_url || null,
+                price,
+                original_url: original_url || null,
+                category: category || null
+            });
+            
+            if (error) {
+                alert('Ошибка: ' + error.message);
+            } else {
+                alert('Модель добавлена!');
+                document.getElementById('model-name').value = '';
+                document.getElementById('model-desc').value = '';
+                document.getElementById('model-image').value = '';
+                document.getElementById('model-price').value = '';
+                document.getElementById('model-original').value = '';
+                document.getElementById('model-category').value = '';
+                loadModelsForAdmin();
+            }
+        };
+        
+        document.getElementById('logout-btn').onclick = logout;
+        
+        checkAdmin().then(isAdmin => {
+            if (isAdmin) loadModelsForAdmin();
+        });
+    </script>
+</body>
+</html>
