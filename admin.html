@@ -19,10 +19,10 @@
     </header>
 
     <main>
-        <h1>Добавление модели</h1>
+        <h1>➕ Добавление модели</h1>
         
         <div class="form-group">
-            <label>Название модели</label>
+            <label>Название модели *</label>
             <input type="text" id="model-name" placeholder="Дракончик">
         </div>
         
@@ -37,12 +37,40 @@
         </div>
         
         <div class="form-group">
-            <label>Цена (₽)</label>
+            <label>Цена (₽) *</label>
             <input type="number" id="model-price" placeholder="500">
         </div>
         
         <div class="form-group">
-            <label>Ссылка на оригинал (Thingiverse и т.д.)</label>
+            <label>Точный вес (грамм) - опционально</label>
+            <input type="number" id="model-weight" placeholder="50">
+            <small>Если не указать, в каталоге будет только цена</small>
+        </div>
+        
+        <div class="form-group">
+            <label>Сложность печати (1-10) - опционально</label>
+            <input type="number" id="model-complexity" placeholder="5" min="1" max="10">
+        </div>
+        
+        <div class="form-group">
+            <label>Лицензия модели *</label>
+            <select id="model-license">
+                <option value="CC0">CC0 (Public Domain) - можно продавать</option>
+                <option value="CC BY">CC BY - можно продавать, указать автора</option>
+                <option value="CC BY-SA">CC BY-SA - можно продавать, открывать изменения</option>
+                <option value="CC BY-NC" disabled>CC BY-NC - НЕЛЬЗЯ продавать</option>
+                <option value="Commercial License">Коммерческая лицензия (Patreon и др.)</option>
+                <option value="Other">Другая (требуется проверка)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Автор модели</label>
+            <input type="text" id="model-author" placeholder="Имя автора">
+        </div>
+        
+        <div class="form-group">
+            <label>Ссылка на оригинал</label>
             <input type="url" id="model-original" placeholder="https://www.thingiverse.com/thing:123456">
         </div>
         
@@ -51,9 +79,9 @@
             <input type="text" id="model-category" placeholder="Фигурки, Органайзеры...">
         </div>
         
-        <button id="add-model-btn" class="btn-primary">Добавить модель</button>
+        <button id="add-model-btn" class="btn-primary">➕ Добавить модель</button>
         
-        <h2 style="margin-top: 2rem;">Существующие модели</h2>
+        <h2 style="margin-top: 2rem;">📋 Существующие модели</h2>
         <div id="models-list"></div>
     </main>
 
@@ -63,15 +91,15 @@
 
     <script src="supabase-init.js"></script>
     <script>
-        // Проверка что это админ (по email)
+        const ADMIN_EMAIL = 'andrey_2019_myashin@mail.ru'; // ЗАМЕНИ НА СВОЙ EMAIL
+        
         async function checkAdmin() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 window.location.href = 'profile.html';
                 return false;
             }
-            // Твой email как админ
-            if (session.user.email !== 'твой-email@example.com') {
+            if (session.user.email !== ADMIN_EMAIL) {
                 alert('У вас нет прав администратора');
                 window.location.href = 'index.html';
                 return false;
@@ -93,9 +121,12 @@
             
             container.innerHTML = models.map(model => `
                 <div style="background:#f0f0f0; padding:1rem; margin-bottom:1rem; border-radius:5px;">
-                    <strong>${model.name}</strong> - ${model.price} ₽<br>
+                    <strong>${model.name}</strong> - ${model.price} ₽
+                    ${model.weight ? `<span style="background:#e94560; color:white; padding:2px 8px; border-radius:12px; margin-left:10px;">⚖️ ${model.weight}г</span>` : ''}
+                    ${model.license ? `<span style="background:#666; color:white; padding:2px 8px; border-radius:12px; margin-left:5px;">📜 ${model.license}</span>` : ''}
+                    <br>
                     <small>${model.description?.substring(0, 100)}</small><br>
-                    <button onclick="deleteModel(${model.id})" style="background:#e94560; margin-top:0.5rem;">Удалить</button>
+                    <button onclick="deleteModel(${model.id})" style="background:#e94560; margin-top:0.5rem;">🗑️ Удалить</button>
                 </div>
             `).join('');
         }
@@ -109,34 +140,39 @@
         
         document.getElementById('add-model-btn').onclick = async () => {
             const name = document.getElementById('model-name').value;
-            const description = document.getElementById('model-desc').value;
-            const image_url = document.getElementById('model-image').value;
             const price = parseFloat(document.getElementById('model-price').value);
-            const original_url = document.getElementById('model-original').value;
-            const category = document.getElementById('model-category').value;
             
             if (!name || !price) {
                 alert('Заполните название и цену');
                 return;
             }
             
-            const { error } = await supabase.from('models').insert({
+            const newModel = {
                 name,
-                description,
-                image_url: image_url || null,
+                description: document.getElementById('model-desc').value,
+                image_url: document.getElementById('model-image').value || null,
                 price,
-                original_url: original_url || null,
-                category: category || null
-            });
+                weight: document.getElementById('model-weight').value ? parseFloat(document.getElementById('model-weight').value) : null,
+                complexity: document.getElementById('model-complexity').value ? parseFloat(document.getElementById('model-complexity').value) : null,
+                license: document.getElementById('model-license').value,
+                author: document.getElementById('model-author').value || null,
+                original_url: document.getElementById('model-original').value || null,
+                category: document.getElementById('model-category').value || null
+            };
+            
+            const { error } = await supabase.from('models').insert(newModel);
             
             if (error) {
                 alert('Ошибка: ' + error.message);
             } else {
-                alert('Модель добавлена!');
+                alert('✅ Модель добавлена!');
                 document.getElementById('model-name').value = '';
                 document.getElementById('model-desc').value = '';
                 document.getElementById('model-image').value = '';
                 document.getElementById('model-price').value = '';
+                document.getElementById('model-weight').value = '';
+                document.getElementById('model-complexity').value = '';
+                document.getElementById('model-author').value = '';
                 document.getElementById('model-original').value = '';
                 document.getElementById('model-category').value = '';
                 loadModelsForAdmin();
@@ -144,10 +180,7 @@
         };
         
         document.getElementById('logout-btn').onclick = logout;
-        
-        checkAdmin().then(isAdmin => {
-            if (isAdmin) loadModelsForAdmin();
-        });
+        checkAdmin().then(isAdmin => { if (isAdmin) loadModelsForAdmin(); });
     </script>
 </body>
 </html>
